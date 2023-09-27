@@ -5,11 +5,27 @@ import requests
 from pyquery import PyQuery as pq
 from bs4 import BeautifulSoup
 import os
+import logging
+import argparse
+import sys
 
+
+LOG = logging.getLogger(__name__)
+__version__ = "1.0.0"    #设置版本信息
+__author__ = ("Boya Xu",)   #输入作者信息
+__email__ = "834786312@qq.com"
+__all__ = []
+
+
+def add_help_args(parser):   #帮助函数
+    parser.add_argument('--html', type=str, default=False, help="输入文件")
+    parser.add_argument('--path', type=str, default=False, help="路径")
+    parser.add_argument('--prefix', type=str, default=False, help="name")
+    return parser
 
 requests.packages.urllib3.disable_warnings()
 
-def run_IS605_txt(html = "./IS605.html"):
+def run_IS605_txt(html, prefix, path=os.getcwd()):
     f = open(html, 'r', encoding='utf-8')
     soup = BeautifulSoup(f, 'html.parser')
     result_table = soup.find('table', class_='result')
@@ -32,17 +48,17 @@ def run_IS605_txt(html = "./IS605.html"):
             row_data.extend([link1, link2, link3])
             table_data.append(row_data)
     print(table_data)
-    with open('output.tsv', 'w', encoding='utf-8') as tsvfile:
+    with open(path+prefix+'_out.tsv', 'w', encoding='utf-8') as tsvfile:
         # 写入表头
         tsvfile.write('\t'.join(header_info) + '\n')
         # 写入表格数据
         for row in table_data:
             tsvfile.write('\t'.join(row) + '\n')
 
-def run_link(output):
+def run_link(prefix, path=os.getcwd()):
     requests.packages.urllib3.disable_warnings()
     data = {}
-    with open(output, 'r',encoding='utf-8') as file:
+    with open(path+prefix+'_out.tsv', 'r', encoding='utf-8') as file:
         next(file)
         lines = file.readlines()
     extracted_data = []
@@ -82,9 +98,9 @@ def run_link(output):
                 data[IS_name].append([num, ORF_function, na, ORF_protein])
         elif int(orf_n) == 0:
             print(IS_name+' has no ORF')
-        pwd = os.getcwd()
+        #pwd = os.getcwd()
         for II in data:
-            folder_path = str(pwd+'/'+ II + 'ORF')
+            folder_path = str(path+ '/' + prefix + '_db/' + II + 'ORF')
             os.makedirs(folder_path, exist_ok=True)
             if os.path.exists(folder_path):
                 if int(data[II][4]) == 0:
@@ -110,12 +126,18 @@ def run_link(output):
                 break
 
 
+def main():   #主函数，执行函数
+    logging.basicConfig(stream=sys.stderr, level=logging.INFO, format="[%(levelname)s] %(message)s")
+    parser = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter, description=''' 
+name:statistic.py 
+attention: python read_ISfinder --file  --pre  -p -l
+version: %s
+contact: %s <%s>\ 
+静态网站爬取脚本，用于获取ISfinder的html脚本
+''' % (__version__, ' '.join(__author__), __email__))
+    args = add_help_args(parser).parse_args()
+    run_IS605_txt(args.html, args.prefix, args.path)
+    run_link(args.prefix, args.path)
 
-
-
-run_IS605_txt(html = "./IS605.html")
-run_link("./output.tsv")
-
-
-
-
+if __name__ == "__main__":           #固定格式，使 import 到其他的 python 脚本中被调用（模块重用）执行
+    main()
